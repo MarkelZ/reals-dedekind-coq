@@ -28,10 +28,9 @@ Open Scope Q_scope.
  *)
 
 Ltac qauto:=
-  repeat split;
-  eauto;
   unfold Qdiv;
   unfold Qinv;
+  repeat split;
   simpl;
   eauto;
   try lra.
@@ -62,11 +61,15 @@ Definition disjoint (L U : Q -> Prop) :=
 Definition located (L U : Q -> Prop) :=
     forall q r : Q, q < r -> L q \/ U r.
 
+Definition congruent (C : Q -> Prop) :=
+    forall q r : Q, C q /\ q == r -> C r.
+
 (* Dedekind cut definition *)
 Definition cut (L U : Q -> Prop) :=
     inhabited L /\ inhabited U /\ 
     rounded_left L /\ rounded_right U /\
-    disjoint L U /\ located L U.
+    disjoint L U /\ located L U /\ 
+    congruent L /\ congruent U.
 
 (* My real type from Dedekind cut (L, U) *)
 Inductive my_R :=
@@ -96,6 +99,8 @@ Proof.
     - intros (q & H1). lra.
     - intros q. lra.
     - intros q r H2. lra.
+    - intros q r H. lra.
+    - intros q r H. lra.
 Qed.
 
 (* Map from rational numbers to my real numbers *)
@@ -164,13 +169,23 @@ Proof.
       + apply H5. exists x. qauto.
       + apply H6. exists y. qauto.
     - intros q ((x & y & H1 & H2 & H3) & (x' & y' & H4 & H5 & H6)).
-      destruct cut1 as (_ & _ & _ & _ & H7 & _).
-      destruct cut2 as (_ & _ & _ & _ & H8 & _).
-      unfold disjoint in *. admit.
+      destruct cut1 as (_ & _ & _ & _ & H7 & H9 & Hc & _).
+      destruct cut2 as (_ & _ & _ & _ & H8 & H10 & _).
+      assert (x > x' \/ x < x' \/ x == x') as H11; [lra|].
+      destruct H11 as [H|[H|H]].
+      + destruct (H9 x' x); try eapply H7; eauto.
+      + assert (y > y'); [lra|].
+        destruct (H10 y' y); try eapply H8; eauto.
+      + eapply H7. split; [|apply H4]. eauto.
     - intros q r H1. 
-      destruct cut1 as (_ & _ & _ & _ & _ & H2).
-      destruct cut2 as (_ & _ & _ & _ & _ & H3).
-      edestruct H2, H3; eauto. admit.
+      destruct cut1 as (_ & _ & _ & _ & _ & H2 & _).
+      destruct cut2 as (_ & _ & _ & _ & _ & H3 & _).
+      unfold located in *.
+      edestruct H2, H3; eauto; admit.
+    - intros q r ((x & y & H1 & H2 & H3) & H4).
+      exists x, y. qauto.
+    - intros q r ((x & y & H1 & H2 & H3) & H4).
+      exists x, y. qauto.
 Admitted.
 
 (* My real number addition *)
@@ -227,8 +242,15 @@ Proof.
       destruct cut_x as (_ & _ & H & _ & _).
       destruct (H (- r)) as (_ & H4).
       apply H4. exists q'. qauto.
+    - intros q ((r & H1 & H2) & (r' & H3 & H4)).
+      destruct cut_x as (_ & _ & _ & _ & H7 & _ & _ & Hc).
+      eapply H7. split; eauto.
+      apply (Hc r). qauto.
     - admit.
-    - admit.
+    - intros q r ((q' & H1 & H2) & H3).
+      exists q'. qauto.
+    - intros q r ((q' & H1 & H2) & H3).
+      exists q'. qauto.
 Admitted.
 
 (* My real number additive inverse *)
@@ -320,37 +342,23 @@ Lemma double_neg :
 Proof.
     intros [L U c] q. repeat split; unfold L_neg, U_neg. 
     - intros (r & (r' & H1 & H2) & H3).
-      (* I don't think this is provable because
-         q == r' does not mean L q -> L r'.
-         I need something slightly stronger than rounded_left L U:
-         forall x y : Q, L x /\ y <= x -> L y.
-         Maybe I can change the def of cut L U, not sure if that
-         would break anything, seems ok a priori.
-      *)
-      admit. 
+      destruct c as (_ & _ & _ & _ & _ & _ & H4 & _).
+      apply (H4 (-r) q). qauto.
+      apply (H4 r' (-r)). qauto.
     - intros; exists (- q); qauto; exists q; qauto.
     - intros (r & (r' & H1 & H2) & H3).
-      (* Same issue here *)
-      admit.
+      destruct c as (_ & _ & _ & _ & _ & _ & _ & H4).
+      apply (H4 (-r) q). qauto.
+      apply (H4 r' (-r)). qauto.
     - intros; exists (- q); qauto; exists q; qauto.
-Admitted.
-
-Lemma double_neg_Q :
-    forall x : Q, (-' -' Q_to_R x ) =' (Q_to_R x).
-Proof.
-    simpl. unfold L_neg, U_neg, L_Q, U_Q. intros q r. repeat split.
-    + intros (r' & (r'' & H1 & H2) & H3). lra.
-    + intros H1. exists (- r). split; [exists r|]; lra.
-    + intros (r' & (r'' & H1 & H2) & H3). lra.
-    + intros H1. exists (- r). split; [exists r|]; lra.
 Qed.
 
 Lemma add_inverse :
   forall x : my_R, (x +' -' x) =' R0.
 Proof.
-    (* This probably runs into the same issue as double_neg. *)
     intros [L U c] q. unfold L_add, U_add, L_neg, U_neg, L_Q, U_Q; repeat split.
-    - intros (x & y & H1 & (r & H2 & H3) & H4). admit.
+    - intros (x & y & H1 & (r & H2 & H3) & H4).
+      admit.
     - admit.
     - admit.
     - admit.
