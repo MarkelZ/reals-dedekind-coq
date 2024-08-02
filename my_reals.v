@@ -246,12 +246,16 @@ Proof.
       destruct cut_x as (_ & _ & _ & _ & H7 & _ & _ & Hc).
       eapply H7. split; eauto.
       apply (Hc r). qauto.
-    - admit.
+    - intros q r H1.
+      destruct cut_x as (_ & _ & _ & _ & _ & H2 & _).
+      destruct (H2 (-r) (-q)); [lra|..].
+        + right. exists (- r). qauto.
+        + left. exists (- q). qauto.
     - intros q r ((q' & H1 & H2) & H3).
       exists q'. qauto.
     - intros q r ((q' & H1 & H2) & H3).
       exists q'. qauto.
-Admitted.
+Qed.
 
 (* My real number additive inverse *)
 Definition inv (x : my_R) : my_R :=
